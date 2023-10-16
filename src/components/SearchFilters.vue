@@ -92,6 +92,8 @@ const convertReadableLabel = function (original) {
   }
 };
 
+
+
 export default {
   name: "SearchFilters",
   components: {
@@ -110,6 +112,11 @@ export default {
       default: ()=>{}
     },
   },
+  inject: {
+    'alternateSearch' : {
+      default: undefined,
+    },
+  },
   data: function () {
     return {
       cascaderIsReady: false,
@@ -125,7 +132,6 @@ export default {
       cascadeSelectedWithBoolean: [], 
       numberShown: 10,
       filters: [],
-      facets: ["Species", "Gender", "Organ", "Datasets"],
       numberDatasetsShown: ["10", "20", "50"],
       props: { multiple: true },
       options: [
@@ -147,43 +153,67 @@ export default {
       if (facet) return term + ">" + facet;
       else return term;
     },
-    populateCascader: function () {
+    populateCascaderOptions: function(data) {
+      this.options = data;
+      // create top level of options in cascader
+      this.options.forEach((facet, i) => {
+        this.options[i].label = convertReadableLabel(facet.label);
+        this.options[i].value = this.createCascaderItemValue(
+          facet.key,
+          undefined
+        );
+
+        // put "Show all" as first option
+        this.options[i].children.unshift({
+          value: this.createCascaderItemValue("Show all"),
+          label: "Show all",
+        });
+
+        // populate second level of options 
+        this.options[i].children.forEach((facetItem, j) => {
+          this.options[i].children[j].label = convertReadableLabel(
+            facetItem.label
+          );
+          this.options[i].children[j].value =
+            this.createCascaderItemValue(facet.label, facetItem.label);
+        });
+      });
+    },
+    populateDefaultCascader: function() {
       return new Promise((resolve) => {
         // Algolia facet serach
         this.algoliaClient.getAlgoliaFacets(facetPropPathMapping)
           .then((data) => {
-            this.facets = data;
-            this.options = data;
-
-            // create top level of options in cascader
-            this.options.forEach((facet, i) => {
-              this.options[i].label = convertReadableLabel(facet.label);
-              this.options[i].value = this.createCascaderItemValue(
-                facet.key,
-                undefined
-              );
-
-              // put "Show all" as first option
-              this.options[i].children.unshift({
-                value: this.createCascaderItemValue("Show all"),
-                label: "Show all",
-              });
-
-              // populate second level of options 
-              this.options[i].children.forEach((facetItem, j) => {
-                this.options[i].children[j].label = convertReadableLabel(
-                  facetItem.label
-                );
-                this.options[i].children[j].value =
-                  this.createCascaderItemValue(facet.label, facetItem.label);
-              });
-            });
-            this.createDataTypeFacet();
+            this.populateCascaderOptions(data);
           })
           .finally(() => {
             resolve();
           });
       });
+    },
+    setCascaderReady:function() {
+      this.cascaderIsReady = true;
+      this.checkShowAllBoxes();
+      this.setCascader(this.entry.filterFacets);
+      this.makeCascadeLabelsClickable();
+      this.$emit("cascaderReady");
+    },
+    alternateSearchCB: function(payload) {
+      this.populateCascaderOptions(payload.data);
+      this.setCascaderReady();
+    },
+    populateCascader: function () {
+      if (this.alternateSearch) {
+        const payload = {
+          requestType: "getFacets",
+          queryUrl: this.envVars.QUERY_URL,
+        };
+        this.alternateSearch(payload, this.alternateSearchCB);
+      } else {
+        this.populateDefaultCascader().then(() => {
+          this.setCascaderReady();
+        });
+      }
     },
     tagsChangedCallback: function (presentTags) {
       if (presentTags.length > 0) {
@@ -216,7 +246,6 @@ export default {
             AND: fs[2] // for setting the boolean
           }
         })
-
 
         this.$emit('loading', true) // let sidebarcontent wait for the requests
 
@@ -289,28 +318,6 @@ export default {
         });
       }
       return event;
-    },
-    createDataTypeFacet: function(){
-      let dataFacet = {...this.facets[2]} // copy the 'Experiemental approach' facet
-      let count = this.facets.at(-1).id // get the last id count
-
-      // Step through the children that are valid data types, switch thier values 
-      let newChildren = dataFacet.children.filter( el=> {
-        if (el.label === 'Scaffold' || el.label === 'Simulation' || el.label === 'Show all'){
-          el.key = el.label
-          el.id = count
-          el.value = el.value.replace('Experimental approach', 'Data type')
-          count++
-          return el
-        }
-      })
-      dataFacet.id = count
-      dataFacet.key = 'Data type'
-      // Add 'duplicate' so that the key is unique. This is removed in the cascade event for filtering
-      dataFacet.value += 'duplicate' 
-      dataFacet.children = newChildren
-      dataFacet.label = 'Data type'
-      this.facets.push(dataFacet)
     },
     cascadeExpandChange: function (event) {
       //work around as the expand item may change on modifying the cascade props
@@ -440,21 +447,21 @@ export default {
     },
   },
   mounted: function () {
-    this.algoliaClient = new AlgoliaClient(this.envVars.ALGOLIA_ID, this.envVars.ALGOLIA_KEY, this.envVars.PENNSIEVE_API_LOCATION);
-    this.algoliaClient.initIndex(this.envVars.ALGOLIA_INDEX);
-    this.populateCascader().then(() => {
-      this.cascaderIsReady = true;
-      this.checkShowAllBoxes();
-      this.setCascader(this.entry.filterFacets);
-      this.makeCascadeLabelsClickable();
-      this.$emit("cascaderReady");
-    });
+    if (!this.alternateSearch) {
+      this.algoliaClient = new AlgoliaClient(this.envVars.ALGOLIA_ID, this.envVars.ALGOLIA_KEY, this.envVars.PENNSIEVE_API_LOCATION);
+      this.algoliaClient.initIndex(this.envVars.ALGOLIA_INDEX);
+    }
+    this.populateCascader();
   },
 };
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
+<style scoped lang="scss">
+@import "~element-ui/packages/theme-chalk/src/option";
+@import "~element-ui/packages/theme-chalk/src/popover";
+@import "~element-ui/packages/theme-chalk/src/select";
+
 .filter-default-value {
   pointer-events: none;
   position: absolute;
@@ -468,7 +475,6 @@ export default {
   width: 24px !important;
   height: 24px;
   transform: scale(1.1);
-  color: #8300bf;
   cursor: pointer;
 }
 
@@ -499,16 +505,16 @@ export default {
   padding-bottom: 6px;
 }
 
-.cascader >>> .el-cascder-panel {
+.cascader ::v-deep .el-cascder-panel {
   max-height: 500px;
 }
 
-.cascader >>> .el-scrollbar__wrap {
+.cascader::v-deep .el-scrollbar__wrap {
   overflow-x: hidden;
   margin-bottom: 2px !important;
 }
 
-.cascader >>> li[aria-owns*="cascader"] > .el-checkbox {
+.cascader ::v-deep li[aria-owns*="cascader"] > .el-checkbox {
   display: none;
 }
 
@@ -533,76 +539,74 @@ export default {
   float: right;
 }
 
-.number-shown-select >>> .el-input__inner {
+.number-shown-select ::v-deep .el-input__inner {
   width: 68px;
   height: 40px;
   color: rgb(48, 49, 51);
 }
 
-.search-filters >>> .el-cascader-node.is-active {
-  color: #8300bf;
+.search-filters ::v-deep .el-cascader-node.is-active {
+  color: $app-primary-color;
 }
 
-.search-filters >>> .el-cascader-node.in-active-path {
-  color: #8300bf;
+.search-filters ::v-deep .el-cascader-node.in-active-path {
+  color: $app-primary-color;
 }
 
-.search-filters >>> .el-checkbox__input.is-checked > .el-checkbox__inner {
-  background-color: #8300bf;
-  border-color: #8300bf;
+.search-filters ::v-deep .el-checkbox__input.is-checked > .el-checkbox__inner {
+  background-color: $app-primary-color;
+  border-color: $app-primary-color;
 }
 
-.cascader >>> .el-cascader-menu:nth-child(2) .el-cascader-node:first-child {
+.cascader ::v-deep .el-cascader-menu:nth-child(2) .el-cascader-node:first-child {
   border-bottom: 1px solid #e4e7ed;
 }
 
-.cascader >>> .el-cascader-node__label {
+.cascader ::v-deep .el-cascader-node__label {
   text-align: left;
 }
 
-.filters >>> .el-popover {
+.filters ::v-deep .el-popover {
     background: #f3ecf6 !important;
-    border: 1px solid #8300BF;
+    border: 1px solid $app-primary-color;
     border-radius: 4px;
     color: #303133 !important;
     font-size: 12px;
     line-height: 18px;
-  
-  
 }
 
-.filters >>> .el-popover[x-placement^="top"] .popper__arrow {
-  border-top-color: #8300BF;
+.filters ::v-deep .el-popover[x-placement^="top"] .popper__arrow {
+  border-top-color: $app-primary-color;
   border-bottom-width: 0;
 }
-.filters >>> .el-popover[x-placement^="top"] .popper__arrow::after {
+.filters ::v-deep .el-popover[x-placement^="top"] .popper__arrow::after {
   border-top-color: #f3ecf6;
   border-bottom-width: 0;
 }
 
-.filters >>> .el-popover[x-placement^="bottom"] .popper__arrow {
+.filters ::v-deep .el-popover[x-placement^="bottom"] .popper__arrow {
   border-top-width: 0;
-  border-bottom-color: #8300BF;
+  border-bottom-color: $app-primary-color;
 }
-.filters >>> .el-popover[x-placement^="bottom"] .popper__arrow::after {
+.filters ::v-deep .el-popover[x-placement^="bottom"] .popper__arrow::after {
   border-top-width: 0;
   border-bottom-color: #f3ecf6;
 }
 
-.filters >>> .el-popover[x-placement^="right"] .popper__arrow {
-  border-right-color: #8300BF;
+.filters ::v-deep .el-popover[x-placement^="right"] .popper__arrow {
+  border-right-color: $app-primary-color;
   border-left-width: 0;
 }
-.filters >>> .el-popover[x-placement^="right"] .popper__arrow::after {
+.filters ::v-deep .el-popover[x-placement^="right"] .popper__arrow::after {
   border-right-color: #f3ecf6;
   border-left-width: 0;
 }
 
-.filters >>> .el-popover[x-placement^="left"] .popper__arrow {
+.filters ::v-deep .el-popover[x-placement^="left"] .popper__arrow {
   border-right-width: 0;
-  border-left-color: #8300BF;
+  border-left-color: $app-primary-color;
 }
-.filters >>> .el-popover[x-placement^="left"] .popper__arrow::after {
+.filters ::v-deep .el-popover[x-placement^="left"] .popper__arrow::after {
   border-right-width: 0;
   border-left-color: #f3ecf6;
 }

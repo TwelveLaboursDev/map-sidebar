@@ -8,4 +8,14 @@ module.exports = {
       config.externals =   [ nodeExternals({allowlist: [/^marked/]}) ];
     }
   },
+  css: {
+    sourceMap: process.env.NODE_ENV === 'wc',
+    extract: process.env.NODE_ENV !== 'wc',
+    //Import variables into all stylesheets.
+    loaderOptions: {
+      sass: {
+        prependData: `@import '@/assets/styles';`
+      }
+    }
+  }
 }

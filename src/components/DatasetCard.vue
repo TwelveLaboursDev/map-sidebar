@@ -4,9 +4,10 @@
       <div class="seperator-path"></div>
       <div v-loading="loading" class="card" >
         <span class="card-left">
-          <image-gallery v-if="!loading && discoverId" 
-            :datasetId="discoverId"
+          <image-gallery v-if="!loading && datasetId" 
+            :datasetId="datasetId"
             :datasetVersion="version"
+            :dataLocation="dataLocation"
             :entry="entry"
             :envVars="envVars"
             :label="label"
@@ -14,6 +15,7 @@
             :dataset-biolucida="biolucidaData"
             :category="currentCategory"
             @card-clicked="galleryClicked"
+            :key="datasetId"
           />
         </span>
         <div class="card-right" >
@@ -56,6 +58,11 @@ Vue.use(Icon);
 export default {
   name: "DatasetCard",
   components: { BadgesGroup, ImageGallery },
+  inject: {
+    'alternateSearch' : {
+      default: undefined,
+    },
+  },
   props: {
     /**
      * Object containing information for
@@ -74,7 +81,7 @@ export default {
     return {
       thumbnail: require('@/../assets/missing-image.svg'),
       dataLocation: this.entry.doi,
-      discoverId: undefined,
+      datasetId: undefined,
       loading: true,
       version: 1,
       lastDoi: undefined,
@@ -99,7 +106,8 @@ export default {
     samples: function() {
       let text = "";
       if (this.entry.species) {
-        if (speciesMap[this.entry.species[0].toLowerCase()]){
+        if (this.entry.species.length > 0 &&
+          speciesMap[this.entry.species[0].toLowerCase()]) {
           text = `${speciesMap[this.entry.species[0].toLowerCase()]}`;
         } else {
           text = `${this.entry.species}`;
@@ -188,20 +196,37 @@ export default {
           })
           .then((data) => {
             this.thumbnail = data.banner
-            this.discoverId = data.id
+            this.datasetId = data.id
             this.version = data.version
-            this.dataLocation = `https://sparc.science/datasets/${data.id}?type=dataset`
-            this.getBiolucidaInfo(this.discoverId)
+            this.dataLocation = `${this.envVars.ROOT_URL}/datasets/${data.id}?type=dataset`
+            this.getBiolucidaInfo(this.datasetId)
             this.loading = false
           })
           .catch(() => {
             //set defaults if we hit an error
             this.thumbnail = require('@/../assets/missing-image.svg')
-            this.discoverId = Number(this.entry.datasetId)
+            this.datasetId = Number(this.entry.datasetId)
             this.loading = false
           });
       }
 
+    },
+    initialise: function() {
+      if (!this.alternateSearch) {
+        this.getBanner();
+      } else {
+        this.dataLocation = this.envVars.ROOT_URL + this.entry.data_url_suffix;
+        this.datasetId = this.entry.datasetId;
+        const token = localStorage.getItem("one_off_token");
+        if (this.entry.scaffoldViews.length > 0) {
+          this.thumbnail = this.envVars.QUERY_URL + this.entry.scaffoldViews[0].image_url + `?token=${token}`;
+        } else if (this.entry.thumbnails.length > 0) {
+          this.thumbnail = this.envVars.QUERY_URL + this.entry.thumbnails[0].image_url + `?token=${token}`;
+        } else {
+          this.thumbnail = require("@/../assets/missing-image.svg");
+        }
+        this.loading = false;
+      }
     },
     lastName: function(fullName){
       return fullName.split(',')[0]
@@ -219,19 +244,22 @@ export default {
     }
   },
   created: function() {
-    this.getBanner()
+    this.initialise();
   },
   watch: {
     // currently not using card overflow
-    'entry.description': function() { // watch it
-      this.getBanner()
+    'entry.datasetId': function() { // watch it
+      this.initialise();
     }
   },
 };
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
+<style scoped lang="scss">
+@import "~element-ui/packages/theme-chalk/src/col";
+@import "~element-ui/packages/theme-chalk/src/loading";
+
 .dataset-card {
   padding-left: 16px;
   position: relative;
@@ -257,7 +285,7 @@ export default {
 }
 
 .card-left{
-  flex: 1
+  flex: 1;
 }
 
 .card-right {
@@ -274,15 +302,15 @@ export default {
   font-style: normal;
   line-height: normal;
   letter-spacing: normal;
-  background-color: #8300bf;
-  border: #8300bf;
+  background-color: $app-primary-color;
+  border: $app-primary-color;
   color: white;
   cursor: pointer;
   margin-top: 8px;
 }
 
 .button:hover {
-  background-color: #8300bf;
+  background-color: $app-primary-color;
   color: white;
 }
 
@@ -315,11 +343,11 @@ export default {
   left: 80px;
 }
 
-.loading-icon >>> .el-loading-mask {
+.loading-icon ::v-deep .el-loading-mask {
   background-color: rgba(117, 190, 218, 0.0) !important;
 }
 
-.loading-icon >>> .el-loading-spinner .path {
-  stroke: #8300bf;
+.loading-icon ::v-deep .el-loading-spinner .path {
+  stroke: $app-primary-color;
 }
 </style>

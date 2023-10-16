@@ -8,16 +8,16 @@ export const facetPropPathMapping = {
   'item.modalities.keyword' : 'Experimental Approach',
   'attributes.subject.sex.value' : 'Sex',
   'attributes.subject.ageCategory.value' : 'Age Categories',
-  'item.keywords.keyword' : 'Keywords'
+  'item.types.name' : 'Data type',
 }
 
 // Same as above, but these show on the sidebar filters
 export const shownFilters = {
   'anatomy.organ.name' : 'Anatomical Structure',
   'organisms.primary.species.name' : 'Species',
-  'item.modalities.keyword' : 'Experimental Approach',
   'attributes.subject.sex.value' : 'Sex',
   'attributes.subject.ageCategory.value' : 'Age Categories',
+  'item.types.name' : 'Data type',
 }
 
 /* Returns filter for searching algolia. All facets of the same category are joined with OR,

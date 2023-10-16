@@ -35,7 +35,7 @@ export default {
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
+<style scoped lang="scss">
 
 .tab-container{
   height: 28px;
@@ -44,7 +44,7 @@ export default {
 .title {
   width: 101px;
   height: 28px;
-  border: solid 1px #dcdfe6;
+  border: solid 1px $lineColor1;
   border-bottom: none;
   background-color: white;
   display:inline-block;
@@ -68,11 +68,11 @@ export default {
 }
 
 .parent-dialog:hover .title-text {
-  color:#8300bf;
+  color:$app-primary-color;
 }
 
 .highlightText {
-  color:#8300bf;
+  color:$app-primary-color;
 }
 
 </style>

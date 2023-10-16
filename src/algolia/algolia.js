@@ -81,8 +81,8 @@ export class AlgoliaClient {
         doi: res.item.curie.split(':')[1],
         name: res.item.name,
         description: res.item.description,
-        updated: res.pennsieve.updatedAt,
-        publishDate: res.pennsieve.publishDate,
+        updated: res.pennsieve ? res.pennsieve.updatedAt : undefined,
+        publishDate: res.pennsieve ? res.pennsieve.publishDate : undefined,
         datasetId: res.objectID,
         detailsReady: false
       }
@@ -146,7 +146,7 @@ export class AlgoliaClient {
           let searchData = {
             items: this._processResultsForCards(response.hits),
             total: response.nbHits,
-            discoverIds: response.hits.map(r => r.pennsieve.identifier),
+            discoverIds: response.hits.map(r => r.pennsieve ? r.pennsieve.identifier : r.objectID),
             dois: response.hits.map(r => r.item.curie.split(':')[1])
           }
           resolve(searchData)

@@ -12,7 +12,8 @@
     <el-button @click="keywordSearch">keyword search</el-button>
     <SideBar :envVars="envVars" class="side-bar" ref="sideBar" :visible="sideBarVisibility"
       :tabs="tabs" :activeId="activeId" @tabClicked="tabClicked"
-      @search-changed="searchChanged($event)" @actionClick="action"/>
+      @search-changed="searchChanged($event)" @actionClick="action"
+      :alternate-search="mySearch"/>
   </div>
 </template>
 
@@ -20,7 +21,9 @@
 /* eslint-disable no-alert, no-console */
 // optionally import default styles
 import SideBar from './components/SideBar'
+import { mySearch } from './demo/AlternateResponse.js'
 
+console.log(mySearch)
 // let testContext = {
 //   "description": "3D digital tracings of the enteric plexus obtained from seven subjects (M11, M16, M162, M163, M164, M168) are mapped randomly on mouse proximal colon. The data depicts individual neural wiring patterns in enteric microcircuits, and revealed both neuron and fiber units wired in a complex organization.",
 //   "heading": "Digital tracings of enteric plexus",
@@ -93,8 +96,11 @@ export default {
         BL_SERVER_URL: process.env.VUE_APP_BL_SERVER_URL,
         NL_LINK_PREFIX: process.env.VUE_APP_NL_LINK_PREFIX,
         ROOT_URL: process.env.VUE_APP_ROOT_URL,
+        QUERY_URL: process.env.VUE_APP_QUERY_URL,
       },
       activeId: 1,
+      mySearch: mySearch,
+      //mySearch: undefined,
     }
   },
   methods:{
@@ -132,11 +138,14 @@ export default {
     neuronSearch: function(){
       this.$refs.sideBar.openNeuronSearch('ilxtr:neuron-type-keast-10')
     }
-  }
+  },
+  mounted: function() {
+    console.log("mounted app")
+  },
 }
 </script>
 
-<style>
+<style lang="scss">
 #app {
   height:100%;
   width: 100%;
@@ -145,5 +154,8 @@ export default {
 }
 body {
   margin:0px;
+}
+.map-icon {
+  color: $app-primary-color;
 }
 </style>
