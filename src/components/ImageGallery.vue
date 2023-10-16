@@ -118,8 +118,23 @@ export default {
     };
   },
   methods: {
+    alternateSearchCB: function() {
+      return
+    },
     cardClicked: function(payload) {
-      this.$emit('card-clicked', payload);
+      let clickedCard = {}
+      Object.assign(clickedCard, payload);
+      if (this.alternateSearch) {
+        const tokenPayload = {
+          requestType: "getToken",
+          queryUrl: this.envVars.QUERY_URL,
+        };
+        this.alternateSearch(tokenPayload, this.alternateSearchCB);
+        const token = localStorage.getItem("one_off_token");
+        clickedCard.resource += `?token=${token}`;
+        clickedCard.viewUrl += `?token=${token}`;
+      }
+      this.$emit('card-clicked', clickedCard);
     },
     createSciCurnchItems: function () {
       if (this.entry.s3uri) this.updateS3Bucket(this.entry.s3uri);
@@ -296,10 +311,11 @@ export default {
     createScaffoldViewItems: function() {
       if (this.entry.scaffoldViews) {
         // let index = 0;
+        const token = localStorage.getItem("one_off_token");
         this.entry.scaffoldViews.forEach((scaffold) => {
           const filePath = scaffold.dataset.path;
           const id = scaffold.identifier;
-          let thumbnailURL = this.envVars.QUERY_URL + scaffold.image_url;
+          let thumbnailURL = this.envVars.QUERY_URL + scaffold.image_url + `?token=${token}`;
           let action = {
             label: capitalise(this.label),
             resource:
